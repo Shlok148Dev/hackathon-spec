@@ -16,6 +16,8 @@ docs/
 ├── ANTIGRAVITY_INTEGRATION.md → Task execution workflow
 └── CONTROL_RULES.md          → During-hack rules
 
+SCOPE.md        → Must Work vs Nice-to-Have (cut at Hour 12)
+CHECKPOINTS.md  → Time-based discipline (Hour 6/12/18/22)
 DEMO.md         → Demo flow + fallbacks
 DECISIONS.md    → Decision log (log ALL changes)
 ```
@@ -84,14 +86,19 @@ git reset --hard <commit-hash>
 # Log in DECISIONS.md
 ```
 
-## Timeline
+## Timeline & Checkpoints
 
-| Hour | Action |
-|------|--------|
-| 0-8 | Build (execute tasks) |
-| 8-16 | Integrate (connect components) |
-| 16-20 | Stabilize (cut scope, hardcode) |
-| 20-24 | Demo Prep (CODE FREEZE) |
+| Hour | Action | Checkpoint |
+|------|--------|------------|
+| 0-6 | Build (execute tasks) | — |
+| 6 | **CHECKPOINT** | Foundation ≥50%, git tag hour-6 |
+| 6-12 | Integrate (connect components) | — |
+| 12 | **SCOPE FREEZE** | Cut nice-to-have, git tag hour-12 |
+| 12-18 | Stabilize (bug fixes only) | — |
+| 18 | **CODE FREEZE** | Polish only, git tag hour-18 |
+| 18-22 | Demo prep (practice) | — |
+| 22 | **FINAL LOCKDOWN** | Demo ready, git tag final |
+| 22-24 | Pitch refinement | — |
 
 ## Red Flags 🚩
 

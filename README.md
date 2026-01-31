@@ -24,6 +24,9 @@ hackathon-spec/
 │       └── components/  # Stitch-generated UI
 ├── backend/             # API implementation
 ├── demo/                # Demo assets
+├── docs/                # Integration guides
+├── SCOPE.md             # Must Work vs Nice-to-Have
+├── CHECKPOINTS.md       # Time-based discipline
 ├── DEMO.md              # Demo flow & fallbacks
 ├── DECISIONS.md         # Decision log
 └── README.md            # This file
