@@ -58,10 +58,18 @@ async def create_ticket(ticket: TicketCreate, background_tasks: BackgroundTasks,
     new_ticket.priority = classification.get("urgency")
     await db.commit()
     
+    with open("debug_tickets.log", "a") as f:
+        f.write(f"Ticket {new_ticket.id} Classified as {cat}\n")
+
     # 3. Trigger Agent (Diagnostician) if technical issue
     # For Demo speed: If "API_ERROR", "WEBHOOK", "CHECKOUT", run immediately.
     if cat in ["API_ERROR", "WEBHOOK_FAIL", "CHECKOUT_BREAK", "CONFIG_ERROR"]:
+         with open("debug_tickets.log", "a") as f:
+            f.write(f"Triggering Diagnostician for {new_ticket.id}\n")
          await run_diagnostician(new_ticket.id, cat)
+    else:
+         with open("debug_tickets.log", "a") as f:
+            f.write(f"Skipping Diagnostician for {cat}\n")
 
     return new_ticket
 

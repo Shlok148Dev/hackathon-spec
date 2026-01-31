@@ -57,41 +57,25 @@ async def run_diagnostician(ticket_id: UUID, classification: str):
         model_client = GeminiADKClient()
         agent = DiagnosticianAgent(model_client=model_client)
         
-        # 3. Construct Input
-        # Logic: We pass the ticket details to the agent
-        prompt = f"""
-        Ticket ID: {ticket.id}
-        Merchant ID: {ticket.merchant_id}
-        Classification: {classification}
-        Issue: {ticket.raw_text}
-        
-        Please START YOUR DIAGNOSIS.
-        """
-        
-        # 4. Run Agent (Simulated run loop if ADK run() is complex, 
-        # but we'll try standard agent.run() if available or generate())
-        # Since I don't trust the specific ADK installed version's loop, I'll create a minimal loop here
-        # or just call generate if it's a single-shot agent. 
-        # The Diagnostician Prompt implies OODA loop which might be multi-turn.
-        # For Phase 2 Demo, we'll do a single thorough pass using the "One Shot" capabilities of Gemini 1.5 Pro
-        # with the "OODA" prompt instructions.
+        # 3. Fetch Merchant Context (Mock or minimal for now)
+        merchant_context = {"id": str(ticket.merchant_id), "tier": "growth"} 
         
         try:
-            # We treat the agent prompt + ticket as the input.
-            full_prompt = f"{agent.system_prompt}\n\nCONTEXT:\n{prompt}"
-            
-            response_text = await model_client.a_generate(full_prompt)
-            
-            # 5. Parse Output
-            # We expect JSON
-            clean_text = response_text.replace("```json", "").replace("```", "").strip()
-            decision_json = {}
-            try:
+            # 4. Run the Agent Logic
+            # Verify the method exists to be safe
+            if hasattr(agent, "diagnose"):
+                decision_json = await agent.diagnose(
+                    ticket_text=ticket.raw_text,
+                    classification=classification,
+                    merchant_context=merchant_context
+                )
+            else:
+                # Fallback to old prompt method if method missing
+                full_prompt = f"{agent.system_prompt}\n\nCONTEXT:\n{prompt}"
+                response_text = await model_client.a_generate(full_prompt)
+                clean_text = response_text.replace("```json", "").replace("```", "").strip()
                 decision_json = json.loads(clean_text)
-            except:
-                logger.warning("Agent did not return valid JSON. Wrapping text.")
-                decision_json = {"raw_response": response_text}
-                
+
             # 6. Store Decision
             decision = AgentDecision(
                 ticket_id=ticket.id,
@@ -105,11 +89,13 @@ async def run_diagnostician(ticket_id: UUID, classification: str):
             db.add(decision)
             
             # Update Ticket
-            ticket.root_cause = decision_json.get("root_cause")
+            ticket.root_cause = decision_json.get("root_cause") or "See diagnosis"
             ticket.status = "diagnosed"
             
             await db.commit()
             
         except Exception as e:
             logger.error(f"Agent execution failed: {e}")
+            with open("agent_error.log", "a") as f:
+                f.write(f"ERROR: {e}\n")
 

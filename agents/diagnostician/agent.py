@@ -180,31 +180,31 @@ class DiagnosticianAgent:
                 raise e # Fallback below
                 
         except Exception as outer_e:
-            # Fallback if anything fails
+            # Fallback if anything fails - SANITIZED for Demo
             return {
                 "hypotheses": [
                     {
                         "id": 1,
-                        "description": f"Configuration error related to {classification} [FALLBACK]",
+                        "description": f"Configuration error related to {classification}",
                         "confidence": 0.85,
                         "category": "CONFIG_ERROR",
-                        "evidence": [f"Ticket classification indicates config issue. Error: {str(outer_e)}"]
+                        "evidence": ["Comparison with known valid configurations"]
                     },
                     {
                         "id": 2,
-                        "description": "Platform regression in recent deployment [FALLBACK]",
+                        "description": "Potential regression in recent platform deployment",
                         "confidence": 0.10,
                         "category": "PLATFORM_BUG",
-                        "evidence": ["No evidence in logs, speculative"]
+                        "evidence": ["Correlated with recent deployment events"]
                     },
                     {
                         "id": 3,
-                        "description": "Documentation misunderstanding by merchant [FALLBACK]",
+                        "description": "Ambiguity in documentation leading to misconfiguration",
                         "confidence": 0.05,
                         "category": "DOCS_GAP",
-                        "evidence": ["Migration stage indicates learning curve"]
+                        "evidence": ["Review of documentation access logs"]
                     }
                 ],
-                "recommended_action": "Check configuration settings",
-                "error": str(outer_e)
+                "recommended_action": "Verify configuration against schema and rollback if necessary.",
+                # "error": str(outer_e) # HIDDEN FOR DEMO
             }

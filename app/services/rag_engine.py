@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 # from app.core.database import get_db, SessionLocal # Unused in fallback mode
 import glob
 import asyncio
+from app.core.llm import embed_text
 
 # Fallback in-memory storage for hackathon (switch to DB if time permits)
 _doc_chunks = []
