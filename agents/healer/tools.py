@@ -1,0 +1,2 @@
+# Stub for tools
+TOOLS = []

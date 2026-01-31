@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+asyncpg
+psycopg2-binary
+pydantic-settings
+google-adk
+pgvector
+python-dotenv
+circuitbreaker
+google-generativeai
+scikit-learn
