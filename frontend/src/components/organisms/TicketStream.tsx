@@ -1,0 +1,67 @@
+import * as ReactWindow from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
+import { useAppStore } from '@/lib/store';
+import { TicketCard } from '@/components/molecules/TicketCard';
+import { useRef } from 'react';
+
+// Robust import handling for CJS/ESM interop
+const FixedSizeList = ReactWindow.FixedSizeList || (ReactWindow as any).default?.FixedSizeList;
+
+export const TicketStream = () => {
+    const tickets = useAppStore(state => state.tickets);
+    const selectedId = useAppStore(state => state.selectedTicketId);
+    const setSelected = useAppStore(state => state.setSelectedTicket);
+    // @ts-ignore
+    const listRef = useRef<FixedSizeList>(null);
+
+    // Auto-scroll logic could go here (comparing prev length)
+
+    const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+        const ticket = tickets[index];
+        if (!ticket) return null;
+
+        return (
+            <TicketCard
+                ticket={ticket}
+                isSelected={ticket.id === selectedId}
+                onClick={() => setSelected(ticket.id)}
+                style={style}
+            />
+        );
+    };
+
+    if (!FixedSizeList) {
+        return <div className="text-red-500 p-4">Error: FixedSizeList not found in react-window</div>;
+    }
+
+    return (
+        <div className="h-full w-full bg-slate-950 border-r border-slate-800">
+            {/* Header */}
+            <div className="h-12 border-b border-slate-800 flex items-center px-4 justify-between bg-slate-950/50 backdrop-blur-sm sticky top-0 z-10">
+                <span className="text-xs font-bold tracking-widest text-slate-500 uppercase">Incoming Signal</span>
+                <span className="text-xs font-mono text-emerald-500">{tickets.length} ACTIVE</span>
+            </div>
+
+            {/* Virtual List */}
+            <div className="h-[calc(100vh-48px)]">
+                <div style={{ height: '100%', width: '100%' }}>
+                    <AutoSizer>
+                        {({ height, width }: { height: number, width: number }) => (
+                            // @ts-ignore
+                            <FixedSizeList
+                                ref={listRef}
+                                className="List"
+                                height={height}
+                                width={width}
+                                itemCount={tickets.length}
+                                itemSize={80}
+                            >
+                                {Row}
+                            </FixedSizeList>
+                        )}
+                    </AutoSizer>
+                </div>
+            </div>
+        </div>
+    );
+};

@@ -66,11 +66,40 @@ class TicketClassifier:
             return result
             
         except Exception as e:
-            logger.error(f"Classification failed: {e}")
-            # Fallback for reliability
-            return {
-                "category": "API_ERROR", 
-                "confidence": 0.0, 
-                "urgency": 5, 
-                "reasoning": f"Classifier failed: {str(e)}"
-            }
+            logger.error(f"Classification failed (Gemini): {e}. Switching to Rule-Based Fallback.")
+            return self._rule_based_fallback(text)
+
+    def _rule_based_fallback(self, text: str) -> Dict[str, Any]:
+        text_lower = text.lower()
+        category = "API_ERROR" # Default
+        confidence = 0.5
+        reasoning = "Rule-based fallback triggered due to LLM failure."
+        urgency = 5
+        
+        if "checkout" in text_lower or "cart" in text_lower or "pay" in text_lower:
+            category = "CHECKOUT_BREAK"
+            confidence = 0.9
+            urgency = 10
+        elif "webhook" in text_lower:
+            category = "WEBHOOK_FAIL"
+            confidence = 0.9
+            urgency = 7
+        elif "doc" in text_lower or "how to" in text_lower:
+            category = "DOCS_CONFUSION"
+            confidence = 0.8
+            urgency = 3
+        elif "config" in text_lower or "url" in text_lower:
+            category = "CONFIG_ERROR"
+            confidence = 0.8
+            urgency = 4
+        elif "api" in text_lower or "401" in text_lower or "500" in text_lower:
+            category = "API_ERROR"
+            confidence = 0.9
+            urgency = 8
+            
+        return {
+            "category": category,
+            "confidence": confidence,
+            "urgency": urgency,
+            "reasoning": reasoning
+        }
