@@ -6,7 +6,7 @@ Hermes is an **Agentic AI System** designed for headless commerce platforms. It 
 ![Dashboard Preview](./docs/dashboard_preview.png)
 
 ## 🚀 The Problem
-Modern headless commerce migrations are complex. A single API mismatch or config error c@app.on_event("startup")` hook to run a database migration, ensured the `resolved_at` column is added to the `tickets` table upon server start.
+Modern headless commerce migrations are complex. A single API mismatch or config error can break checkout for thousands of users. Human support teams take hours to perform:
 1.  Triaging the ticket.
 2.  Reading logs.
 3.  Finding the documentation.
@@ -56,7 +56,7 @@ cd hackathon-spec
 ```bash
 # Setup Environment
 cp .env.example .env
-# (Add your DATABASE_URL and GOOGLE_API_KEY)
+# (Add your DATABASE_URL and GEMINI_API_KEY)
 
 # Install Dependencies
 pip install -r requirements.txt
