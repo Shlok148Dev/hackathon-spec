@@ -4,6 +4,17 @@ import { useDiagnosis } from '@/hooks/useDiagnosis';
 import { useAppStore } from '@/lib/store';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import { Ticket } from '@/types';
+import AgentErrorBoundary from '@/components/AgentErrorBoundary';
+
+// System metrics type
+interface SystemMetrics {
+    neural_activity_percent: number;
+    queue_depth: number;
+    agents_active: number;
+    tickets_per_minute: number;
+    llm_latency_ms: number;
+    awaiting_approval: number;
+}
 
 export const Dashboard = () => {
     // 1. Data Integration
@@ -15,8 +26,38 @@ export const Dashboard = () => {
     const selectedTicket = tickets.find(t => t.id === selectedTicketId);
     const { data: diagnosis } = useDiagnosis(selectedTicketId);
 
+    // Real-time system metrics
+    const [metrics, setMetrics] = useState<SystemMetrics>({
+        neural_activity_percent: 30,
+        queue_depth: 0,
+        agents_active: 0,
+        tickets_per_minute: 0,
+        llm_latency_ms: 0,
+        awaiting_approval: 0
+    });
+
     // Mock data for the brainwave chart
     const [chartData, setChartData] = useState<{ value: number }[]>([]);
+
+    // Poll metrics every 3 seconds
+    useEffect(() => {
+        const fetchMetrics = async () => {
+            try {
+                const response = await fetch('/api/v1/metrics');
+                if (response.ok) {
+                    const data = await response.json();
+                    setMetrics(data);
+                }
+            } catch (error) {
+                console.error('Metrics fetch failed:', error);
+            }
+        };
+
+        fetchMetrics(); // Initial fetch
+        const metricsInterval = setInterval(fetchMetrics, 3000);
+
+        return () => clearInterval(metricsInterval);
+    }, []);
 
     useEffect(() => {
         // Generate initial data
@@ -55,44 +96,50 @@ export const Dashboard = () => {
                 </div>
 
                 {/* Scrollable List */}
-                <nav className="flex-1 space-y-2 p-2 overflow-y-auto scrollbar-hide">
-                    {isTicketsLoading && tickets.length === 0 && (
-                        <div className="p-4 text-center text-xs text-slate-500 animate-pulse">Scanning frequencies...</div>
-                    )}
-                    {tickets.map(ticket => {
-                        const color = getTicketColor(ticket);
-                        const isSelected = ticket.id === selectedTicketId;
+                <AgentErrorBoundary>
+                    <nav className="flex-1 space-y-2 p-2 overflow-y-auto scrollbar-hide">
+                        {isTicketsLoading && tickets.length === 0 && (
+                            <div className="p-4 text-center text-xs text-slate-500 animate-pulse">Scanning frequencies...</div>
+                        )}
+                        {tickets.map(ticket => {
+                            const color = getTicketColor(ticket);
+                            const isSelected = ticket.id === selectedTicketId;
 
-                        return (
-                            <article
-                                key={ticket.id}
-                                onClick={() => setSelectedTicketId(ticket.id)}
-                                className={`group relative flex flex-col gap-2 rounded-sm border-l-4 border-l-${color} ${isSelected ? 'bg-slate-800' : 'bg-slate-900'} p-3 transition-all hover:-translate-y-0.5 hover:bg-slate-800 cursor-pointer shadow-lg`}
-                            >
-                                <div className="flex items-center justify-between gap-2">
-                                    <span className="text-xs font-bold text-white truncate">{ticket.merchantName || 'Unknown Merchant'}</span>
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        <span className={`rounded bg-slate-800 px-1.5 py-0.5 text-[9px] font-bold text-${color}`}>{ticket.classification}</span>
-                                        <span className="text-[9px] text-slate-500 font-mono">2m ago</span>
+                            return (
+                                <article
+                                    key={ticket.id}
+                                    onClick={() => setSelectedTicketId(ticket.id)}
+                                    className={`group relative flex flex-col gap-2 rounded-sm border-l-4 border-l-${color} ${isSelected ? 'bg-slate-800' : 'bg-slate-900'} p-3 transition-all hover:-translate-y-0.5 hover:bg-slate-800 cursor-pointer shadow-lg`}
+                                >
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-xs font-bold text-white truncate">{ticket.merchantName || 'Unknown Merchant'}</span>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <span className={`rounded bg-slate-800 px-1.5 py-0.5 text-[9px] font-bold text-${color}`}>{ticket.classification}</span>
+                                            <span className="text-[9px] text-slate-500 font-mono">2m ago</span>
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="space-y-1">
-                                    <h3 className="text-xs font-semibold text-slate-100 line-clamp-2 leading-snug">{(ticket.rawText || '').substring(0, 100)}...</h3>
-                                    <p className="text-[11px] text-slate-400 line-clamp-1">{ticket.id}</p>
-                                </div>
-                                <div className="mt-1">
-                                    <div className="flex justify-between text-[8px] font-bold uppercase text-slate-500 mb-1">
-                                        <span>AI Confidence</span>
-                                        <span className={`text-${color}`}>{Math.floor(ticket.confidence * 100)}%</span>
+                                    <div className="space-y-1">
+                                        <h3 className="text-xs font-semibold text-slate-100 line-clamp-2 leading-snug">{(ticket.rawText || '').substring(0, 100)}...</h3>
+                                        <p className="text-[11px] text-slate-400 line-clamp-1">{ticket.id}</p>
                                     </div>
-                                    <div className="h-0.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                                        <div className={`h-full bg-${color}`} style={{ width: `${ticket.confidence * 100}%` }}></div>
+                                    <div className="mt-1">
+                                        <div className="flex justify-between text-[8px] font-bold uppercase text-slate-500 mb-1">
+                                            <span>AI Confidence</span>
+                                            <span className={`text-${color}`}>
+                                                {(ticket.confidence || 0) <= 1
+                                                    ? Math.floor((ticket.confidence || 0) * 100)
+                                                    : Math.floor(ticket.confidence || 0)}%
+                                            </span>
+                                        </div>
+                                        <div className="h-0.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                                            <div className={`h-full bg-${color}`} style={{ width: `${(ticket.confidence || 0) <= 1 ? (ticket.confidence || 0) * 100 : ticket.confidence}%` }}></div>
+                                        </div>
                                     </div>
-                                </div>
-                            </article>
-                        );
-                    })}
-                </nav>
+                                </article>
+                            );
+                        })}
+                    </nav>
+                </AgentErrorBoundary>
             </aside>
 
             {/* === CENTER COLUMN (50%) - NEURAL BRAIN + COGNITIVE FEED === */}
@@ -111,16 +158,16 @@ export const Dashboard = () => {
                         </div>
                         <div className="flex min-w-[120px] flex-1 flex-col gap-1 p-4 bg-[#020617]">
                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Latency</p>
-                            <p className="text-xl font-bold text-white">12ms</p>
+                            <p className="text-xl font-bold text-white">{metrics.llm_latency_ms}ms</p>
                             <p className="text-xs font-medium text-amber-500 flex items-center gap-1">
-                                -2ms
+                                Gemini
                             </p>
                         </div>
                         <div className="flex min-w-[120px] flex-1 flex-col gap-1 p-4 bg-[#020617]">
                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Throughput</p>
-                            <p className="text-xl font-bold text-white">4.2k/s</p>
+                            <p className="text-xl font-bold text-white">{metrics.tickets_per_minute}/min</p>
                             <p className="text-xs font-medium text-[#10b77f] flex items-center gap-1">
-                                +12%
+                                Ingestion
                             </p>
                         </div>
                     </div>
@@ -128,14 +175,16 @@ export const Dashboard = () => {
                     <div className="flex-1 p-4 gap-4 overflow-hidden relative">
                         <div className="flex items-center justify-between mb-2">
                             <h4 className="text-slate-100 text-xs font-bold leading-normal tracking-[0.2em] uppercase border-l-2 border-[#10b77f] pl-3">Neural Brain Activity</h4>
-                            <span className="text-[10px] font-mono text-[#10b77f]/60">LIVE_STREAM_ID: 0x882A</span>
+                            <div className="flex items-center gap-4">
+                                <span className="text-[10px] font-mono text-[#10b77f]/60">LIVE_STREAM_ID: 0x882A</span>
+                            </div>
                         </div>
 
                         <div className="rounded border border-slate-800 bg-slate-900/40 p-4 h-[calc(100%-2rem)] backdrop-blur-sm relative flex flex-col">
                             <div className="flex items-end justify-between absolute top-4 left-4 right-4 z-10">
                                 <div>
                                     <p className="text-slate-400 text-sm font-medium">AI Processing Load</p>
-                                    <p className="text-white text-3xl lg:text-4xl font-bold tracking-tight">88.4<span className="text-[#10b77f]/50 text-xl">%</span></p>
+                                    <p className="text-white text-3xl lg:text-4xl font-bold tracking-tight">{metrics.neural_activity_percent.toFixed(1)}<span className="text-[#10b77f]/50 text-xl">%</span></p>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-[10px] font-bold text-slate-500 uppercase">Status</p>
@@ -184,49 +233,97 @@ export const Dashboard = () => {
                         <span className="text-[10px] font-mono text-slate-500">HYPOTHESIS_ENGINE_ACTIVE</span>
                     </div>
 
-                    <div className="space-y-4">
-                        {diagnosis?.hypotheses?.map((hypothesis, idx) => (
-                            <div key={idx} className="group relative flex flex-col gap-3 rounded border border-slate-800 bg-slate-900/20 p-4 transition-all hover:bg-slate-900/40">
-                                <div className="absolute -left-[1px] top-4 h-8 w-0.5 bg-[#8b5cf6]"></div>
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <span className="font-mono text-xs text-slate-500">0{idx + 1}</span>
-                                        <span className="rounded bg-[#8b5cf6]/10 px-2 py-0.5 text-[10px] font-bold text-[#8b5cf6] uppercase">Analysis</span>
+                    <AgentErrorBoundary>
+                        {!diagnosis ? (
+                            <div className="text-center py-10 text-slate-600 font-mono text-xs uppercase tracking-widest">
+                                {selectedTicket ? "Analyzing Data Streams..." : "Select a signal to begin analysis"}
+                            </div>
+                        ) : (
+                            <div className="space-y-0 overflow-y-auto h-full pr-2">
+                                {/* STEP 1: ORCHESTRATOR */}
+                                <div className="relative pl-6 pb-6 border-l-2 border-emerald-500/30">
+                                    <div className="absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                                    <div className="text-[10px] font-mono text-emerald-400 mb-1 uppercase tracking-wider">
+                                        Orchestrator • {selectedTicket?.created_at ? new Date(selectedTicket.created_at).toLocaleTimeString() : 'Just now'}
                                     </div>
-                                    <span className="text-[10px] font-bold text-slate-500">{Math.floor(hypothesis.confidence * 100)}% MATCH</span>
+                                    <div className="text-sm text-slate-200 mb-1">
+                                        Classified as <span className="font-semibold text-emerald-400">{diagnosis.classification}</span>
+                                    </div>
+                                    <div className="text-xs text-slate-500">
+                                        Confidence: {(diagnosis.confidence * 100).toFixed(0)}% • Routed to Diagnostician
+                                    </div>
                                 </div>
 
-                                <div>
-                                    <p className="text-sm font-medium text-slate-200">{hypothesis.description}</p>
-                                    <p className="mt-1 text-xs text-slate-500 line-clamp-2">{hypothesis.evidence?.join('. ')}</p>
+                                {/* STEP 2: DIAGNOSTICIAN */}
+                                <div className="relative pl-6 pb-6 border-l-2 border-purple-500/30">
+                                    <div className="absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
+                                    <div className="text-[10px] font-mono text-purple-400 mb-1 uppercase tracking-wider">
+                                        Diagnostician • {['diagnosed', 'resolved'].includes(selectedTicket?.status || '') ? 'Diagnosis Complete' : 'Analyzing'}
+                                    </div>
                                 </div>
 
-                                {/* Confidence Bar */}
-                                <div className="mt-2 h-1 w-full rounded-full bg-slate-800 overflow-hidden">
-                                    <div
-                                        className="h-full bg-[#8b5cf6] transition-all duration-1000"
-                                        style={{ width: `${hypothesis.confidence * 100}%` }}
-                                    />
+                                {/* Evidence */}
+                                {diagnosis.evidence && diagnosis.evidence.length > 0 && (
+                                    <div className="mb-3 p-2 bg-slate-900/50 rounded border border-slate-800 ml-6">
+                                        <div className="text-[10px] text-slate-500 mb-1 uppercase">Evidence Gathered</div>
+                                        {diagnosis.evidence.map((e: string, i: number) => (
+                                            <div key={i} className="text-xs text-slate-400 pl-2 border-l border-slate-700 mb-1">
+                                                {e}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Hypotheses */}
+                                <div className="space-y-2 ml-6 mb-6">
+                                    <div className="text-[10px] text-purple-400 font-mono mb-2 uppercase tracking-wider">Hypothesis Generation</div>
+                                    {diagnosis.hypotheses?.map((h: any, idx: number) => (
+                                        <div
+                                            key={idx}
+                                            className={`p-3 rounded border ${idx === 0
+                                                ? 'border-purple-500/30 bg-purple-500/5'
+                                                : 'border-slate-800 bg-slate-900/20'
+                                                }`}
+                                        >
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="text-[10px] font-bold text-slate-400">H{idx + 1}: {h.category || 'Hypothesis'}</span>
+                                                <span className={`text-xs font-bold ${h.confidence > 0.6 ? 'text-emerald-400' : 'text-slate-500'}`}>
+                                                    {(h.confidence * 100).toFixed(0)}%
+                                                </span>
+                                            </div>
+                                            <div className="text-sm text-slate-200 leading-snug">{h.description}</div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* STEP 3: HEALER */}
+                                <div className="relative pl-6 pb-4 border-l-2 border-slate-800">
+                                    <div className={`absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full ${selectedTicket?.status === 'resolved' ? 'bg-green-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]'}`} />
+                                    <div className={`text-[10px] font-mono ${selectedTicket?.status === 'resolved' ? 'text-green-400' : 'text-amber-400'} mb-1 uppercase tracking-wider`}>
+                                        {selectedTicket?.status === 'resolved' ? 'Healer • Fix Deployed' : 'Healer • Action Potential'}
+                                    </div>
+                                    <p className="text-sm font-medium text-slate-200">
+                                        {selectedTicket?.status === 'resolved' ? 'Fix Deployed' : selectedTicket?.status === 'diagnosed' ? 'Action Proposed' : 'Standby'}
+                                    </p>
+                                    <div className="text-sm text-slate-200 mb-1">
+                                        {selectedTicket?.status === 'resolved' ? (
+                                            <>Action Executed: <span className="text-green-400 font-bold">{diagnosis.recommended_action}</span></>
+                                        ) : (
+                                            <>Proposed: <span className="text-amber-200">{diagnosis.recommended_action || 'Auto-fix recommendation pending'}</span></>
+                                        )}
+                                    </div>
+                                    <div className={`text-xs ${selectedTicket?.status === 'resolved' ? 'text-green-500/80' : 'text-amber-500/80'} mb-2`}>
+                                        {selectedTicket?.status === 'resolved' ? 'Risk Mitigated • System Self-Healed' : 'Risk Level: HIGH • Human approval required'}
+                                    </div>
                                 </div>
                             </div>
-                        )) || (
-                                <div className="text-center py-10 text-slate-600 font-mono text-xs uppercase tracking-widest">
-                                    {selectedTicket ? "Analyzing Data Streams..." : "Select a signal to begin analysis"}
-                                </div>
-                            )}
-
-                        {/* Terminal Activity Log (Simulated) */}
-                        <div className="mt-8 rounded border border-slate-800 bg-black/40 p-4 font-mono text-[10px]">
-                            <p className="text-slate-500 mb-1">[14:22:01] <span className="text-[#10b77f]">INFO:</span> Initializing HERMES sub-processor node_A12</p>
-                            <p className="text-slate-500 mb-1">[14:22:02] <span className="text-[#8b5cf6]">ANALYSIS:</span> Hypothesis generation active...</p>
-                            <p className="text-[#10b77f] animate-pulse">_</p>
-                        </div>
-                    </div>
+                        )}
+                    </AgentErrorBoundary>
                 </div>
-            </main>
+            </main >
 
             {/* === RIGHT COLUMN (25% / 300px) - ALERTS & TELEMETRY === */}
-            <aside className="w-[300px] h-full border-l border-slate-800 bg-[#020617]/30 overflow-y-auto scrollbar-hide shrink-0 lg:flex flex-col hidden">
+            < aside className="w-[300px] h-full border-l border-slate-800 bg-[#020617]/30 overflow-y-auto scrollbar-hide shrink-0 lg:flex flex-col hidden" >
                 <div className="p-4 space-y-4">
                     {/* Header */}
                     <div className="flex items-center justify-between">
@@ -235,51 +332,122 @@ export const Dashboard = () => {
                     </div>
 
                     {/* Recommended Auto-Fix Card */}
-                    {selectedTicket && diagnosis && (
-                        <div className="group relative overflow-hidden rounded border border-red-500/30 bg-red-500/5 p-4 transition-all hover:bg-red-500/10">
-                            <div className="flex items-start gap-3 mb-3">
-                                <span className="material-symbols-outlined text-red-500 text-lg">shield</span>
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <h3 className="text-xs font-bold text-white uppercase tracking-tight">RECOMMENDED AUTO-FIX</h3>
-                                        <span className="rounded bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white">HIGH RISK</span>
+                    <AgentErrorBoundary>
+                        {selectedTicket && diagnosis && (
+                            <div className="group relative overflow-hidden rounded border border-red-500/30 bg-red-500/5 p-4 transition-all hover:bg-red-500/10">
+                                <div className="flex items-start gap-3 mb-3">
+                                    <span className="material-symbols-outlined text-red-500 text-lg">shield</span>
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <h3 className="text-xs font-bold text-white uppercase tracking-tight">RECOMMENDED AUTO-FIX</h3>
+                                            <span className="rounded bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white">HIGH RISK</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="pl-8 mb-4">
-                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">PREDICTED IMPACT</p>
-                                <ul className="space-y-1">
-                                    <li className="flex items-center gap-2 text-xs text-slate-300">
-                                        <span className="text-slate-600">›</span> {diagnosis.recommended_action || "Automatic rollback"}
-                                    </li>
-                                    <li className="flex items-center gap-2 text-xs text-slate-300">
-                                        <span className="text-slate-600">›</span> Merchant notified via webhook
-                                    </li>
-                                    <li className="flex items-center gap-2 text-xs text-slate-300">
-                                        <span className="text-slate-600">›</span> Audit log entry created
-                                    </li>
-                                </ul>
-                            </div>
+                                <div className="pl-8 mb-4">
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">PREDICTED IMPACT</p>
+                                    <ul className="space-y-1">
+                                        <li className="flex items-center gap-2 text-xs text-slate-300">
+                                            <span className="text-slate-600">›</span> {diagnosis.recommended_action || "Automatic rollback"}
+                                        </li>
+                                        <li className="flex items-center gap-2 text-xs text-slate-300">
+                                            <span className="text-slate-600">›</span> Merchant notified via webhook
+                                        </li>
+                                        <li className="flex items-center gap-2 text-xs text-slate-300">
+                                            <span className="text-slate-600">›</span> Audit log entry created
+                                        </li>
+                                    </ul>
+                                </div>
 
-                            <div className="bg-red-500/10 border border-red-500/20 rounded p-2 mb-4">
+                                <div className="bg-red-500/10 border border-red-500/20 rounded p-2 mb-4">
+                                    <div className="flex gap-2">
+                                        <span className="material-symbols-outlined text-red-500 text-sm">warning</span>
+                                        <p className="text-[10px] text-red-200 leading-tight">CAUTION: This action affects live transaction processing. Manual override enabled.</p>
+                                    </div>
+                                </div>
+
                                 <div className="flex gap-2">
-                                    <span className="material-symbols-outlined text-red-500 text-sm">warning</span>
-                                    <p className="text-[10px] text-red-200 leading-tight">CAUTION: This action affects live transaction processing. Manual override enabled.</p>
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                console.log('Rejecting fix for ticket:', selectedTicket.id);
+                                                const response = await fetch(`/api/v1/decisions/${selectedTicket.id}/approve`, {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                        approved: false,
+                                                        approver_id: '00000000-0000-0000-0000-000000000000',
+                                                        justification: 'Rejected via Mission Control'
+                                                    })
+                                                });
+
+                                                if (response.ok) {
+                                                    await response.json();
+                                                    // Update ticket status in store
+                                                    useAppStore.getState().updateTicket({
+                                                        ...selectedTicket,
+                                                        status: 'escalated'
+                                                    });
+                                                    alert('❌ Fix REJECTED. Ticket escalated to human support.');
+                                                } else {
+                                                    alert('❌ Rejection failed. Check console.');
+                                                }
+                                            } catch (error) {
+                                                console.error('Rejection error:', error);
+                                                alert('Network error during rejection.');
+                                            }
+                                        }}
+                                        className="flex-1 py-2 rounded border border-slate-700 hover:bg-slate-800 text-[10px] font-bold uppercase text-slate-300 transition-colors"
+                                    >
+                                        Reject
+                                    </button>
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                console.log('Approving fix for ticket:', selectedTicket.id);
+                                                const response = await fetch(`/api/v1/decisions/${selectedTicket.id}/approve`, {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                        approved: true,
+                                                        approver_id: '00000000-0000-0000-0000-000000000000',
+                                                        justification: 'Approved via Mission Control'
+                                                    })
+                                                });
+
+                                                if (response.ok) {
+                                                    await response.json();
+                                                    // Update ticket status in store
+                                                    const updatedTicket = {
+                                                        ...selectedTicket,
+                                                        status: 'resolved' as const
+                                                    };
+                                                    useAppStore.getState().updateTicket(updatedTicket);
+
+                                                    // Force update local selected ticket to reflect change immediately
+                                                    // This keeps the feed visible but updates the Healer section
+                                                    // (The parent component might need to re-render or we rely on store subscription)
+                                                    alert('✅ Fix APPROVED! Deployed to merchant.');
+                                                } else {
+                                                    const errorData = await response.json();
+                                                    console.error('Approval failed:', errorData);
+                                                    alert('❌ Approval failed. Check console.');
+                                                }
+                                            } catch (error) {
+                                                console.error('Approval error:', error);
+                                                alert('Network error during approval.');
+                                            }
+                                        }}
+                                        className="flex-1 py-2 rounded bg-red-600 hover:bg-red-500 text-[10px] font-bold uppercase text-white shadow-lg shadow-red-900/20 transition-all flex items-center justify-center gap-1"
+                                    >
+                                        <span className="material-symbols-outlined text-sm">check_circle</span>
+                                        Approve Fix
+                                    </button>
                                 </div>
                             </div>
-
-                            <div className="flex gap-2">
-                                <button className="flex-1 py-2 rounded border border-slate-700 hover:bg-slate-800 text-[10px] font-bold uppercase text-slate-300 transition-colors">
-                                    Reject
-                                </button>
-                                <button className="flex-1 py-2 rounded bg-red-600 hover:bg-red-500 text-[10px] font-bold uppercase text-white shadow-lg shadow-red-900/20 transition-all flex items-center justify-center gap-1">
-                                    <span className="material-symbols-outlined text-sm">check_circle</span>
-                                    Approve Fix
-                                </button>
-                            </div>
-                        </div>
-                    )}
+                        )}
+                    </AgentErrorBoundary>
 
                     {!selectedTicket && (
                         <div className="p-4 rounded border border-slate-800 bg-slate-900/20 text-center">
@@ -288,49 +456,130 @@ export const Dashboard = () => {
                         </div>
                     )}
 
-                    {/* System Telemetry */}
+                    {/* Agent Swarm Status - Shows multi-agent architecture */}
                     <div className="mt-4 border-t border-slate-800 pt-4">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-4">System Telemetry</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-4">Agent Swarm Status</p>
 
-                        {/* Node Topology Map (Simulated) */}
-                        <div className="relative aspect-square w-full rounded border border-slate-800 bg-slate-900/50 flex items-center justify-center overflow-hidden mb-4">
-                            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'linear-gradient(to right, #1e293b 1px, transparent 1px), linear-gradient(to bottom, #1e293b 1px, transparent 1px)', backgroundSize: '16px 16px' }}></div>
-                            <div className="relative size-full">
-                                <span className="absolute top-1/4 left-1/3 size-2 rounded-full bg-[#10b77f] animate-ping"></span>
-                                <span className="absolute top-1/4 left-1/3 size-2 rounded-full bg-[#10b77f]/60"></span>
-                                <span className="absolute bottom-1/3 right-1/4 size-2 rounded-full bg-[#10b77f] animate-ping" style={{ animationDelay: '1s' }}></span>
-                                <span className="absolute bottom-1/3 right-1/4 size-2 rounded-full bg-[#10b77f]/60"></span>
+                        <div className="space-y-3">
+                            {/* Orchestrator */}
+                            <div className="rounded border border-slate-800 bg-slate-900/30 p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`size-2 rounded-full ${metrics.queue_depth > 0 ? 'bg-green-500 animate-pulse' : 'bg-slate-600'}`}></span>
+                                        <span className="text-xs font-bold text-slate-100">Orchestrator</span>
+                                    </div>
+                                    <span className="text-[9px] font-mono text-slate-500">Flash</span>
+                                </div>
+                                <p className="text-[10px] text-slate-400">
+                                    {metrics.queue_depth > 0 ? `Processing ${metrics.queue_depth} tickets` : 'Idle - Queue empty'}
+                                </p>
                             </div>
-                            <div className="absolute bottom-2 left-2 flex items-center gap-2 rounded bg-black/80 px-2 py-1 border border-slate-700">
-                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Global Status</span>
+
+                            {/* Diagnostician */}
+                            <div className="rounded border border-slate-800 bg-slate-900/30 p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`size-2 rounded-full ${metrics.agents_active >= 2 ? 'bg-purple-500 animate-pulse' : 'bg-slate-600'}`}></span>
+                                        <span className="text-xs font-bold text-slate-100">Diagnostician</span>
+                                    </div>
+                                    <span className="text-[9px] font-mono text-slate-500">Pro</span>
+                                </div>
+                                <p className="text-[10px] text-slate-400">
+                                    {selectedTicket ? `Analyzing ${selectedTicket.classification}` : 'Awaiting ticket'}
+                                </p>
+                            </div>
+
+                            {/* Healer */}
+                            <div className="rounded border border-slate-800 bg-slate-900/30 p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`size-2 rounded-full ${selectedTicket?.status === 'resolved' ? 'bg-green-500' : diagnosis ? 'bg-amber-500 animate-pulse' : 'bg-slate-600'}`}></span>
+                                        <span className="text-xs font-bold text-slate-100">Healer</span>
+                                    </div>
+                                    <span className="text-[9px] font-mono text-slate-500">Tools</span>
+                                </div>
+                                <p className="text-[10px] text-slate-400">
+                                    {selectedTicket?.status === 'resolved'
+                                        ? 'Fix Deployed'
+                                        : diagnosis
+                                            ? 'Awaiting approval'
+                                            : 'Standby'}
+                                </p>
                             </div>
                         </div>
 
-                        {/* Gauges */}
-                        <div className="space-y-4">
-                            <div>
-                                <div className="flex justify-between text-[10px] font-bold uppercase text-slate-500 mb-1">
-                                    <span>CPU Usage</span>
-                                    <span className="text-slate-100">67%</span>
+                        {/* Enhanced System Telemetry */}
+                        <div className="mt-6 border-t border-slate-800 pt-4">
+                            <h3 className="text-xs font-bold text-slate-500 uppercase mb-3">System Telemetry</h3>
+
+                            {/* Per-Agent Load Bars */}
+                            <div className="space-y-3 mb-4">
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1">
+                                        <span className="text-emerald-400">Orchestrator Load</span>
+                                        <span className="text-slate-300">{Math.min(Math.round(metrics.queue_depth * 2.5), 100)}%</span>
+                                    </div>
+                                    <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-emerald-500 transition-all duration-700"
+                                            style={{ width: `${Math.min(metrics.queue_depth * 2.5, 100)}%` }}
+                                        />
+                                    </div>
                                 </div>
-                                <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
-                                    <div className="h-full bg-[#10b77f] w-[67%]"></div>
+
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1">
+                                        <span className="text-purple-400">Diagnostician Active</span>
+                                        <span className={metrics.agents_active >= 2 ? "text-purple-300" : "text-slate-600"}>
+                                            {metrics.agents_active >= 2 ? "Analyzing" : "Idle"}
+                                        </span>
+                                    </div>
+                                    <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                        <div
+                                            className={`h-full transition-all duration-700 ${metrics.agents_active >= 2 ? "bg-purple-500" : "bg-slate-700"
+                                                }`}
+                                            style={{ width: metrics.agents_active >= 2 ? "75%" : "0%" }}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div className="flex justify-between text-xs mb-1">
+                                        <span className="text-amber-400">Healer Pending</span>
+                                        <span className="text-slate-300">
+                                            {/* We rely on API metrics, but for immediate feedback we can use local state if needed. 
+                                                metrics.awaiting_approval comes from backend. If backend status update takes time, 
+                                                this might lag. But let's assume metrics endpoint is polled. */}
+                                            {metrics.awaiting_approval || 0} tasks
+                                        </span>
+                                    </div>
+                                    <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-amber-500 transition-all duration-700"
+                                            style={{ width: `${Math.min((metrics.awaiting_approval || 0) * 33, 100)}%` }}
+                                        />
+                                    </div>
                                 </div>
                             </div>
-                            <div>
-                                <div className="flex justify-between text-[10px] font-bold uppercase text-slate-500 mb-1">
-                                    <span>RAM Usage</span>
-                                    <span className="text-slate-100">12.4 GB</span>
+
+                            {/* Live Metrics Cards */}
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="bg-slate-900/50 border border-slate-800 rounded p-2">
+                                    <div className="text-[10px] text-slate-500 uppercase">LLM Latency</div>
+                                    <div className="text-lg font-mono text-slate-200">{metrics.llm_latency_ms || 850}ms</div>
+                                    <div className="text-[10px] text-slate-600">Gemini API</div>
                                 </div>
-                                <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
-                                    <div className="h-full bg-[#10b77f] w-[45%]"></div>
+                                <div className="bg-slate-900/50 border border-slate-800 rounded p-2">
+                                    <div className="text-[10px] text-slate-500 uppercase">Throughput</div>
+                                    <div className="text-lg font-mono text-slate-200">{metrics.tickets_per_minute || 12}/min</div>
+                                    <div className="text-[10px] text-slate-600">Ingestion rate</div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </aside>
+            </aside >
 
-        </div>
+        </div >
     );
 };

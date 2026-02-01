@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { GitCommit, GitPullRequest, ArrowDown, Check, Brain, Search, Code2 } from 'lucide-react';
+import { Brain, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface ReasoningStep {

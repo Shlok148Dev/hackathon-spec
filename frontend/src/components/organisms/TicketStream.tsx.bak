@@ -1,18 +1,15 @@
-import * as ReactWindow from 'react-window';
-import AutoSizer from 'react-virtualized-auto-sizer';
+import { FixedSizeList } from 'react-window';
+import { AutoSizer } from 'react-virtualized-auto-sizer';
 import { useAppStore } from '@/lib/store';
 import { TicketCard } from '@/components/molecules/TicketCard';
 import { useRef } from 'react';
-
-// Robust import handling for CJS/ESM interop
-const FixedSizeList = ReactWindow.FixedSizeList || (ReactWindow as any).default?.FixedSizeList;
 
 export const TicketStream = () => {
     const tickets = useAppStore(state => state.tickets);
     const selectedId = useAppStore(state => state.selectedTicketId);
     const setSelected = useAppStore(state => state.setSelectedTicket);
     // @ts-ignore
-    const listRef = useRef<FixedSizeList>(null);
+    const listRef = useRef<any>(null);
 
     // Auto-scroll logic could go here (comparing prev length)
 

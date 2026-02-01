@@ -17,7 +17,7 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
-      '/v1': {
+      '/health': {
         target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false,

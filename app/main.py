@@ -23,11 +23,24 @@ app.add_middleware(
 async def root():
     return {"message": "Hermes System Online", "status": "active"}
 
-from app.api.v1 import health, tickets, decisions
+# EMERGENCY MIGRATION
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import text
+@app.on_event("startup")
+async def startup_db_check():
+    try:
+        engine = create_async_engine(settings.DATABASE_URL)
+        async with engine.begin() as conn:
+            await conn.execute(text("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMP WITH TIME ZONE;"))
+            print("✅ MIGRATION SUCCESS: 'resolved_at' column ensured.")
+        await engine.dispose()
+    except Exception as e:
+        print(f"⚠️ MIGRATION WARNING: {e}")
 
-app.include_router(health.router, prefix="/health", tags=["health"])
+from app.api.v1 import tickets, diagnosis, health, decisions, metrics
+
 app.include_router(tickets.router, prefix="/api/v1/tickets", tags=["tickets"])
+app.include_router(diagnosis.router, prefix="/api/v1/tickets", tags=["diagnosis"]) # diagnosis often hangs off tickets or standalone
+app.include_router(health.router, prefix="/api/v1/health", tags=["health"])
 app.include_router(decisions.router, prefix="/api/v1/decisions", tags=["decisions"])
-
-from app.api.v1 import diagnosis
-app.include_router(diagnosis.router, prefix="/api/v1", tags=["diagnosis"])
+app.include_router(metrics.router, prefix="/api/v1", tags=["metrics"])

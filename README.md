@@ -1,146 +1,88 @@
-# Hackathon Spec Kit
+# 🦅 Hermes: Self-Healing Autonomous Support Agent
+> **Cyber Cypher 5.0 - Advanced Track Submission**
 
-> **Boring name. Winning execution.**
+Hermes is an **Agentic AI System** designed for headless commerce platforms. It functions as an autonomous Site Reliability Engineer (SRE), capable of creating tickets, diagnosing root causes, and implementing fixes—all with human-in-the-loop oversight.
 
-## What This Is
+![Dashboard Preview](./docs/dashboard_preview.png)
 
-Spec Kit is a **constraint-based planning system** for 24-hour hackathons that:
-- Prevents agent hallucination
-- Enforces atomic scope
-- Provides rollback points
-- Enables tool orchestration
+## 🚀 The Problem
+Modern headless commerce migrations are complex. A single API mismatch or config error c@app.on_event("startup")` hook to run a database migration, ensured the `resolved_at` column is added to the `tickets` table upon server start.
+1.  Triaging the ticket.
+2.  Reading logs.
+3.  Finding the documentation.
+4.  Proposing a fix.
 
-## Repository Structure
+**Hermes does this in seconds.**
 
-```
-hackathon-spec/
-├── spec/
-│   ├── context.md       # Problem statement & constraints
-│   ├── tech-spec.md     # Stack & agent rules
-│   ├── design.md        # UX intent (feeds Stitch)
-│   └── tasks/           # 8-12 atomic tasks MAX
-├── frontend/
-│   └── src/
-│       └── components/  # Stitch-generated UI
-├── backend/             # API implementation
-├── demo/                # Demo assets
-├── docs/                # Integration guides
-├── SCOPE.md             # Must Work vs Nice-to-Have
-├── CHECKPOINTS.md       # Time-based discipline
-├── DEMO.md              # Demo flow & fallbacks
-├── DECISIONS.md         # Decision log
-└── README.md            # This file
-```
+## 💡 The Solution: Agent Swarm
+Our architecture uses a "Swarm" of specialized AI agents:
 
-## Workflow
+1.  **Orchestrator (The Boss)**
+    *   *Model*: Gemini 1.5 Flash
+    *   *Role*: Low-latency triaging and routing.
+    *   *Action*: Decides if a ticket needs a human or the AI Diagnostician.
 
-### Phase A — One-Time Setup (Do Once, Now)
+2.  **Diagnostician (The Detective)**
+    *   *Model*: Gemini 1.5 Pro
+    *   *Role*: Deep reasoning and RAG (Retrieval Augmented Generation).
+    *   *Action*: Analyzes documentation + logs to form hypotheses.
 
-1. **Create GitHub Repo**
-   ```bash
-   # Already done! This repo is your source of truth.
-   ```
+3.  **Healer (The Surgeon)**
+    *   *Model*: Code-Generative Model
+    *   *Role*: Proposing safe, reversible fixes.
+    *   *Action*: Generates SQL/JSON patches. Requires **Human Approval** for high-risk actions.
 
-2. **Initialize Spec Kit**
-   ```bash
-   # Already done! Spec structure is in place.
-   ```
+## 🛠️ Tech Stack
+*   **Backend**: Python (FastAPI), SQLAlchemy (Async), PostgreSQL (Supabase)
+*   **AI Core**: Google Gemini 1.5 Pro, `text-embedding-004` (Vector Search)
+*   **Frontend**: React (Vite), Tailwind CSS, Framer Motion
+*   **Infrastructure**: Docker ready, designed for Vercel/Railway.
 
-3. **Lock Structure**
-   ```bash
-   git add .
-   git commit -m "Initialize Spec Kit"
-   ```
+## ⚡ Quick Start
 
-### Phase B — Planning (When Problem Drops)
+### Prerequisites
+*   Python 3.10+
+*   Node.js 18+
+*   PostgreSQL URL (Supabase recommended)
+*   Google Gemini API Key
 
-**Follow this exact order. No skipping.**
-
-1. **context.md** (10-15 min MAX)
-   - Paste problem statement
-   - Define target users
-   - List constraints
-   - Define non-goals
-   - Commit: `git commit -am "Lock problem context"`
-
-2. **tech-spec.md** (15-20 min)
-   - Choose stack
-   - Define architecture rules
-   - List data models (minimal fields)
-   - Define API contracts
-   - Set agent rules
-   - Commit: `git commit -am "Lock technical constraints"`
-
-3. **tasks/** (MOST IMPORTANT)
-   - Create 8-12 task files MAX
-   - Each task: Input → Output → Success Criteria
-   - If >12 tasks → you already lost
-   - Commit: `git commit -am "Lock execution tasks"`
-
-4. **design.md** (UX intent only)
-   - Core user flow
-   - Screen purposes
-   - Design principles
-   - NO colors, layouts, or components
-   - Commit: `git commit -am "Lock UX intent"`
-
-### Phase C — Tool Integration
-
-**Spec Kit → Google Stitch**
-1. Copy `spec/design.md`
-2. Paste into Stitch
-3. Generate UI
-4. Export to `frontend/src/components`
-5. Commit
-
-**Spec Kit → Google Antigravity**
-1. Give agent authority: `spec/tech-spec.md` + ONE task file
-2. Instruction: "Implement this task exactly. Stop when success criteria is met."
-3. Agent executes with stop conditions
-4. No drift
-
-### Phase D — During Hack (Control Rules)
-
-**You NEVER:**
-- Add features outside tasks
-- Change specs casually
-- Redesign mid-build
-
-**You ONLY:**
-- Delete task files (scope cut)
-- Tighten success criteria
-- Hardcode demo data
-
-**Log all changes in `DECISIONS.md`**
-
-## Why This Works Under Pressure
-
-At Hour 14:
-- ✅ Written decisions
-- ✅ Rollback points
-- ✅ Scope kill switches
-- ✅ Restart clarity
-
-## Tool Hierarchy
-
-```
-GitHub (Source of Truth)
-   ↓
-Spec Kit (Constraints)
-   ↓
-├─→ Google Stitch (UI Generation)
-└─→ Google Antigravity (Code Execution)
+### 1. Clone & Setup
+```bash
+git clone https://github.com/your-username/hackathon-spec.git
+cd hackathon-spec
 ```
 
-## Final Lock-In
+### 2. Backend (Port 8000)
+```bash
+# Setup Environment
+cp .env.example .env
+# (Add your DATABASE_URL and GOOGLE_API_KEY)
 
-- **Spec Kit is law**
-- **GitHub is truth**
-- **Antigravity executes**
-- **Stitch decorates**
+# Install Dependencies
+pip install -r requirements.txt
 
-No tool debates. No switching.
+# Run Server (Auto-migrates DB)
+uvicorn app.main:app --reload --port 8000
+```
 
----
+### 3. Frontend (Port 5173)
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-**Now commit this structure and you're ready for battle.**
+### 4. Verified Usage
+Open `http://localhost:5173` to see the **Mission Control Dashboard**.
+*   **Create a Ticket**: Checks for API/Config errors.
+*   **Watch the Feed**: See agents thinking in real-time.
+*   **Approve Fix**: Click "Approve" to let the Healer fix the DB.
+
+## 🧪 Testing
+Run our full end-to-end verification suite:
+```bash
+python scripts/verify_full_system.py
+```
+
+## 📜 License
+MIT

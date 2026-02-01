@@ -1,4 +1,4 @@
-from google.adk.core import Agent
+from app.core.agent_base import Agent
 from .tools import TOOLS
 
 class HealerAgent(Agent):

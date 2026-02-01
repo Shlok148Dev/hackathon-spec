@@ -3,8 +3,12 @@ import { api } from '@/lib/api';
 import { Hypothesis } from '@/types';
 
 interface DiagnosisResponse {
+    classification: string;
+    confidence: number;
     hypotheses: Hypothesis[];
     recommended_action: string;
+    risk_level?: string;
+    evidence?: string[];
 }
 
 export const useDiagnosis = (ticketId: string | null) => {
