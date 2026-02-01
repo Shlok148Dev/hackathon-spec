@@ -23,19 +23,29 @@ app.add_middleware(
 async def root():
     return {"message": "Hermes System Online", "status": "active"}
 
-# EMERGENCY MIGRATION
+# EMERGENCY MIGRATION & INITIALIZATION
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
+from app.core.models import Base
+
 @app.on_event("startup")
 async def startup_db_check():
     try:
         engine = create_async_engine(settings.DATABASE_URL)
         async with engine.begin() as conn:
+            # 1. Ensure vector extension (for RAG)
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+            
+            # 2. Create tables if they don't exist
+            await conn.run_sync(Base.metadata.create_all)
+            
+            # 3. Apply any surgical schema updates
             await conn.execute(text("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMP WITH TIME ZONE;"))
-            print("✅ MIGRATION SUCCESS: 'resolved_at' column ensured.")
+            
+            print("✅ DATABASE INITIALIZED: Extension created and tables synced.")
         await engine.dispose()
     except Exception as e:
-        print(f"⚠️ MIGRATION WARNING: {e}")
+        print(f"⚠️ DATABASE INITIALIZATION WARNING: {e}")
 
 from app.api.v1 import tickets, diagnosis, health, decisions, metrics
 

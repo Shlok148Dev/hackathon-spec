@@ -72,8 +72,17 @@ npm install
 npm run dev
 ```
 
-### 4. Verified Usage
+### 4. Seed Data (Required for First Run)
+If you are using a new database, you must seed a merchant record:
+```bash
+python scripts/seed_merchant.py
+```
+
+### 5. Verified Usage
 Open `http://localhost:5173` to see the **Mission Control Dashboard**.
+> [!TIP]
+> To access the dashboard from other devices on your network, run the frontend with `npm run dev -- --host` and use your machine's IP address.
+
 *   **Create a Ticket**: Checks for API/Config errors.
 *   **Watch the Feed**: See agents thinking in real-time.
 *   **Approve Fix**: Click "Approve" to let the Healer fix the DB.
